@@ -1,5 +1,5 @@
 ARDUINO_DIR = /usr/share/arduino
 BOARD_TAG    = uno
-ARDUINO_PORT = /dev/ttyS0
+ARDUINO_PORT = /dev/ttyLogBox
 ARDUINO_LIBS =
 include /usr/share/arduino/Arduino.mk
