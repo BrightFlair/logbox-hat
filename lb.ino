@@ -85,5 +85,5 @@ void loop() {
 	Serial.print("A5\t");
 	Serial.println(a5);
 	
-	Serial.print("\n");
+	Serial.print("\n\n");
 }
