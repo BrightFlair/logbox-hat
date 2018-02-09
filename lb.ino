@@ -67,7 +67,6 @@ void loop() {
 	Serial.println(s1);
 	Serial.print("S2\t");
 	Serial.println(s2);
-	delay(5000);
 
 	a1 = analogRead(PIN_ANALOG_1);
 	a2 = analogRead(PIN_ANALOG_2);
@@ -86,4 +85,5 @@ void loop() {
 	Serial.println(a5);
 	
 	Serial.print("\n\n");
+	delay(1000);
 }
