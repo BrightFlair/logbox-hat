@@ -34,8 +34,32 @@ int t = 0;
 int last_t = 0;
 
 void setup() {
-        Serial.begin(9600);
-        while(!Serial);
+	pinMode(LED_BUILTIN, OUTPUT);
+
+	Serial.begin(9600);
+	while(!Serial);
+
+	Serial.setTimeout(1000);
+
+	String cal = "";
+	while(cal == "") {
+		Serial.println("CAL");
+		cal = Serial.readString();
+		cal.trim();
+
+		digitalWrite(LED_BUILTIN, HIGH);
+		delay(500);
+		digitalWrite(LED_BUILTIN, LOW);
+		delay(500);
+	}
+
+	sscanf(cal.c_str(), "C1:%lu C2:%lu C3:%lu", &c1, &c2, &c3);
+	last_c1 = HIGH;
+	last_c2 = HIGH;
+	last_c3 = HIGH;
+
+	delay(500);
+	Serial.println("CALOK");
 
         pinMode(PIN_COUNTER_1, INPUT_PULLUP);
         pinMode(PIN_COUNTER_2, INPUT_PULLUP);
@@ -43,6 +67,7 @@ void setup() {
 
         pinMode(PIN_STATUS_1, INPUT_PULLUP);
         pinMode(PIN_STATUS_2, INPUT_PULLUP);
+	digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void getC() {
@@ -120,5 +145,5 @@ void loop() {
         getS();
         getA();
         output();
-        delay(100);
+        delay(50);
 }
