@@ -145,5 +145,5 @@ void loop() {
         getS();
         getA();
         output();
-        delay(50);
+        delay(5);
 }
