@@ -1,3 +1,5 @@
+#include <EnableInterrupt.h>
+
 #define PIN_COUNTER_1 9
 #define PIN_COUNTER_2 10
 #define PIN_COUNTER_3 11
@@ -12,33 +14,140 @@
 #define PIN_ANALOG_5 5
 
 #define DELAY_PRINT 1000
+#define DEBOUNCE 10
 
-unsigned long c1 = 0;
-unsigned long c2 = 0;
-unsigned long c3 = 0;
+volatile unsigned long c1 = 0;
+uint32_t c1_time = 0;
+volatile unsigned long c2 = 0;
+uint32_t c2_time = 0;
+volatile unsigned long c3 = 0;
+uint32_t c3_time = 0;
 
-unsigned long last_c1 = 0;
-unsigned long last_c2 = 0;
-unsigned long last_c3 = 0;
+volatile unsigned long s1 = 0;
+volatile unsigned long s2 = 0;
 
-unsigned int s1 = 0;
-unsigned int s2 = 0;
+const unsigned int ANALOG_SMOOTHING = 100;
+unsigned int *a;
+unsigned int a1[ANALOG_SMOOTHING];
+unsigned int a2[ANALOG_SMOOTHING];
+unsigned int a3[ANALOG_SMOOTHING];
+unsigned int a4[ANALOG_SMOOTHING];
+unsigned int a5[ANALOG_SMOOTHING];
+unsigned int aIndex = 0;
 
-float a1 = 0;
-float a2 = 0;
-float a3 = 0;
-float a4 = 0;
-float a5 = 0;
+unsigned int t = 0;
+unsigned int last_t = 0;
 
-int t = 0;
-int last_t = 0;
+void output() {
+	if(t - last_t < DELAY_PRINT) {
+		return;
+	}
+
+	Serial.print("C1\t");
+	Serial.println(c1);
+	Serial.print("C2\t");
+	Serial.println(c2);
+	Serial.print("C3\t");
+	Serial.println(c3);
+
+	Serial.print("S1\t");
+	Serial.println(s1);
+	Serial.print("S2\t");
+	Serial.println(s2);
+
+	Serial.print("A1\t");
+	Serial.println(getA(1));
+	Serial.print("A2\t");
+	Serial.println(getA(2));
+	Serial.print("A3\t");
+	Serial.println(getA(3));
+	Serial.print("A4\t");
+	Serial.println(getA(4));
+	Serial.print("A5\t");
+	Serial.println(getA(5));
+
+	Serial.print("\n\n");
+
+	last_t = t;
+}
+
+float getA(int num) {
+	switch(num) {
+	case 1:
+		a = a1;
+		break;
+	case 2:
+		a = a2;
+		break;
+	case 3:
+		a = a3;
+		break;
+	case 4:
+		a = a4;
+		break;
+	case 5:
+		a = a5;
+		break;
+	}
+
+	float value = 0;
+
+	for(int i = 0; i < ANALOG_SMOOTHING; i++) {
+		value += *(a + i);
+	}
+
+	return ((value / ANALOG_SMOOTHING) / 204.8);
+}
+
+void readAnalog() {
+	a1[aIndex] = analogRead(PIN_ANALOG_1);
+	a2[aIndex] = analogRead(PIN_ANALOG_2);
+	a3[aIndex] = analogRead(PIN_ANALOG_3);
+	a4[aIndex] = analogRead(PIN_ANALOG_4);
+	a5[aIndex] = analogRead(PIN_ANALOG_5);
+	aIndex ++;
+
+	if(aIndex >= ANALOG_SMOOTHING) {
+		aIndex = 0;
+	}
+}
+
+void resetAnalog() {
+	for(int i = 0; i < ANALOG_SMOOTHING; i++) {
+		a1[i] = 0;
+		a2[i] = 0;
+		a3[i] = 0;
+		a4[i] = 0;
+		a5[i] = 0;
+	}
+}
+
+void interrupt_handler_c1() {
+	uint32_t i_time = millis();
+	if(i_time - c1_time > DEBOUNCE) {
+		c1++;
+	}
+	c1_time = i_time;
+}
+void interrupt_handler_c2() {
+	uint32_t i_time = millis();
+	if(i_time - c2_time > DEBOUNCE) {
+		c2++;
+	}
+	c2_time = i_time;
+}
+void interrupt_handler_c3() {
+	uint32_t i_time = millis();
+	if(i_time - c3_time > DEBOUNCE) {
+		c3++;
+	}
+	c3_time = i_time;
+}
 
 void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
-
 	Serial.begin(9600);
 	while(!Serial);
-
 	Serial.setTimeout(1000);
 
 	String cal = "";
@@ -54,96 +163,28 @@ void setup() {
 	}
 
 	sscanf(cal.c_str(), "C1:%lu C2:%lu C3:%lu", &c1, &c2, &c3);
-	last_c1 = HIGH;
-	last_c2 = HIGH;
-	last_c3 = HIGH;
 
 	delay(500);
 	Serial.println("CALOK");
 
-        pinMode(PIN_COUNTER_1, INPUT_PULLUP);
-        pinMode(PIN_COUNTER_2, INPUT_PULLUP);
-        pinMode(PIN_COUNTER_3, INPUT_PULLUP);
+	pinMode(PIN_COUNTER_1, INPUT_PULLUP);
+	pinMode(PIN_COUNTER_2, INPUT_PULLUP);
+	pinMode(PIN_COUNTER_3, INPUT_PULLUP);
 
-        pinMode(PIN_STATUS_1, INPUT_PULLUP);
-        pinMode(PIN_STATUS_2, INPUT_PULLUP);
+	pinMode(PIN_STATUS_1, INPUT_PULLUP);
+	pinMode(PIN_STATUS_2, INPUT_PULLUP);
 	digitalWrite(LED_BUILTIN, HIGH);
-}
 
-void getC() {
-        unsigned int val_c1 = digitalRead(PIN_COUNTER_1);
-        if(val_c1 == HIGH
-        && val_c1 != last_c1) {
-                c1 ++;
-        }
-        last_c1 = val_c1;
+	enableInterrupt(PIN_COUNTER_1, interrupt_handler_c1, FALLING);
+	enableInterrupt(PIN_COUNTER_2, interrupt_handler_c2, FALLING);
+	enableInterrupt(PIN_COUNTER_3, interrupt_handler_c3, FALLING);
 
-        unsigned int val_c2 = digitalRead(PIN_COUNTER_2);
-        if(val_c2 == HIGH
-        && val_c2 != last_c2) {
-                c2 ++;
-        }
-        last_c2 = val_c2;
-
-        unsigned int val_c3 = digitalRead(PIN_COUNTER_3);
-        if(val_c3 == HIGH
-        && val_c3 != last_c3) {
-                c3 ++;
-        }
-        last_c3 = val_c3;
-}
-
-void getS() {
-        s1 = digitalRead(PIN_STATUS_1);
-        s2 = digitalRead(PIN_STATUS_2);
-}
-
-void getA() {
-        a1 = analogRead(PIN_ANALOG_1);
-        a2 = analogRead(PIN_ANALOG_2);
-        a3 = analogRead(PIN_ANALOG_3);
-        a4 = analogRead(PIN_ANALOG_4);
-        a5 = analogRead(PIN_ANALOG_5);
-}
-
-void output() {
-        if(t - last_t < DELAY_PRINT) {
-                return;
-        }
-
-        Serial.print("C1\t");
-        Serial.println(c1);
-        Serial.print("C2\t");
-        Serial.println(c2);
-        Serial.print("C3\t");
-        Serial.println(c3);
-
-        Serial.print("S1\t");
-        Serial.println(s1);
-        Serial.print("S2\t");
-        Serial.println(s2);
-
-        Serial.print("A1\t");
-        Serial.println(a1);
-        Serial.print("A2\t");
-        Serial.println(a2);
-        Serial.print("A3\t");
-        Serial.println(a3);
-        Serial.print("A4\t");
-        Serial.println(a4);
-        Serial.print("A5\t");
-        Serial.println(a5);
-
-        Serial.print("\n\n");
-
-        last_t = t;
+	resetAnalog();
 }
 
 void loop() {
-        t = millis();
-        getC();
-        getS();
-        getA();
-        output();
-        delay(5);
+	t = millis();
+	readAnalog();
+	output();
+	delay(10);
 }
