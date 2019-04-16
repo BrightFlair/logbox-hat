@@ -38,6 +38,34 @@ unsigned int aIndex = 0;
 unsigned int t = 0;
 unsigned int last_t = 0;
 
+float getA(int num) {
+	switch(num) {
+	case 1:
+		a = a1;
+		break;
+	case 2:
+		a = a2;
+		break;
+	case 3:
+		a = a3;
+		break;
+	case 4:
+		a = a4;
+		break;
+	case 5:
+		a = a5;
+		break;
+	}
+
+	float value = 0;
+
+	for(int i = 0; i < ANALOG_SMOOTHING; i++) {
+		value += *(a + i);
+	}
+
+	return ((value / ANALOG_SMOOTHING) / 204.8);
+}
+
 void output() {
 	if(t - last_t < DELAY_PRINT) {
 		return;
@@ -69,34 +97,6 @@ void output() {
 	Serial.print("\n\n");
 
 	last_t = t;
-}
-
-float getA(int num) {
-	switch(num) {
-	case 1:
-		a = a1;
-		break;
-	case 2:
-		a = a2;
-		break;
-	case 3:
-		a = a3;
-		break;
-	case 4:
-		a = a4;
-		break;
-	case 5:
-		a = a5;
-		break;
-	}
-
-	float value = 0;
-
-	for(int i = 0; i < ANALOG_SMOOTHING; i++) {
-		value += *(a + i);
-	}
-
-	return ((value / ANALOG_SMOOTHING) / 204.8);
 }
 
 void readAnalog() {
