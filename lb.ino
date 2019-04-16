@@ -63,7 +63,7 @@ float getA(int num) {
 		value += *(a + i);
 	}
 
-	return ((value / ANALOG_SMOOTHING) / 204.8);
+	return ((value / ANALOG_SMOOTHING));
 }
 
 void output() {
