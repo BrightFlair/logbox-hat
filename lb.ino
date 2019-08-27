@@ -1,3 +1,4 @@
+#define EI_ARDUINO_INTERRUPTED_PIN
 #include <EnableInterrupt.h>
 
 #define PIN_COUNTER_1 9
@@ -15,13 +16,28 @@
 
 #define DELAY_PRINT 1000
 #define DEBOUNCE 10
+#define COOLOFF 10
 
 volatile unsigned long c1 = 0;
-uint32_t c1_time = 0;
+volatile unsigned long last_c1 = 0;
+volatile unsigned long c1_ftime = 0;
+volatile unsigned long c1_rtime = 0;
+volatile unsigned long c1_fstatus = 0;
+volatile unsigned long c1_rstatus = 0;
+
 volatile unsigned long c2 = 0;
-uint32_t c2_time = 0;
+volatile unsigned long last_c2 = 0;
+volatile unsigned long c2_ftime = 0;
+volatile unsigned long c2_rtime = 0;
+volatile unsigned long c2_fstatus = 0;
+volatile unsigned long c2_rstatus = 0;
+
 volatile unsigned long c3 = 0;
-uint32_t c3_time = 0;
+volatile unsigned long last_c3 = 0;
+volatile unsigned long c3_ftime = 0;
+volatile unsigned long c3_rtime = 0;
+volatile unsigned long c3_fstatus = 0;
+volatile unsigned long c3_rstatus = 0;
 
 volatile unsigned long s1 = 0;
 volatile unsigned long s2 = 0;
@@ -39,7 +55,7 @@ unsigned int t = 0;
 unsigned int last_t = 0;
 
 float getA(int num) {
-	switch(num) {
+	switch (num) {
 	case 1:
 		a = a1;
 		break;
@@ -59,7 +75,7 @@ float getA(int num) {
 
 	float value = 0;
 
-	for(int i = 0; i < ANALOG_SMOOTHING; i++) {
+	for (int i = 0; i < ANALOG_SMOOTHING; i++) {
 		value += *(a + i);
 	}
 
@@ -67,7 +83,7 @@ float getA(int num) {
 }
 
 void output() {
-	if(t - last_t < DELAY_PRINT) {
+	if (t - last_t < DELAY_PRINT) {
 		return;
 	}
 
@@ -105,15 +121,15 @@ void readAnalog() {
 	a3[aIndex] = analogRead(PIN_ANALOG_3);
 	a4[aIndex] = analogRead(PIN_ANALOG_4);
 	a5[aIndex] = analogRead(PIN_ANALOG_5);
-	aIndex ++;
+	aIndex++;
 
-	if(aIndex >= ANALOG_SMOOTHING) {
+	if (aIndex >= ANALOG_SMOOTHING) {
 		aIndex = 0;
 	}
 }
 
 void resetAnalog() {
-	for(int i = 0; i < ANALOG_SMOOTHING; i++) {
+	for (int i = 0; i < ANALOG_SMOOTHING; i++) {
 		a1[i] = 0;
 		a2[i] = 0;
 		a3[i] = 0;
@@ -122,36 +138,212 @@ void resetAnalog() {
 	}
 }
 
-void interrupt_handler_c1() {
-	uint32_t i_time = millis();
-	if(i_time - c1_time > DEBOUNCE) {
-		c1++;
+// Only register a falling edge if it's long enough away from the previous rising edge (debounce)
+void c1_fall() {
+	unsigned long itime = millis();
+
+	c1_fstatus = 1;
+
+	// If a falling edge has been registered
+	// and the time since last falling edge is less than debounce time,
+	// ignore!
+	if (c1_ftime > 0
+	&& itime - c1_ftime < DEBOUNCE) {
+		return;
 	}
-	c1_time = i_time;
+
+	c1_fstatus = 2;
+
+	// If a rising edge has been registered
+	// and the time since last rising edge is less than cooloff time,
+	// ignore!
+	if (c1_rtime > 0
+	&& itime - c1_rtime < COOLOFF) {
+		return;
+	}
+
+	c1_fstatus = 3;
+
+	// Register a successful falling edge.
+	c1_ftime = itime;
 }
-void interrupt_handler_c2() {
-	uint32_t i_time = millis();
-	if(i_time - c2_time > DEBOUNCE) {
-		c2++;
+
+void c1_rise() {
+	unsigned long itime = millis();
+
+	c1_rstatus = 1;
+
+	// If a rising edge has been registered
+	// and the time since last rising edge is less than debounce time,
+	// ignore!
+	if (c1_rtime > 0
+	&& itime - c1_rtime < DEBOUNCE) {
+		return;
 	}
-	c2_time = i_time;
+
+	c1_rstatus = 2;
+
+	// If the time since last falling edge is less than colloff time,
+	// ignore!
+	if (itime - c1_ftime < COOLOFF) {
+		return; // Too soon - cool off!
+	}
+
+	c1_rstatus = 3;
+
+	c1_rtime = itime;
+	c1++;
 }
-void interrupt_handler_c3() {
-	uint32_t i_time = millis();
-	if(i_time - c3_time > DEBOUNCE) {
-		c3++;
+
+void c1_change() {
+	if (arduinoPinState == 0) {
+		c1_fall();
 	}
-	c3_time = i_time;
+	else {
+		c1_rise();
+	}
+}
+
+// Only register a falling edge if it's long enough away from the previous rising edge (debounce)
+void c2_fall() {
+	unsigned long itime = millis();
+
+	c2_fstatus = 1;
+
+	// If a falling edge has been registered
+	// and the time since last falling edge is less than debounce time,
+	// ignore!
+	if (c2_ftime > 0
+	&& itime - c2_ftime < DEBOUNCE) {
+		return;
+	}
+
+	c2_fstatus = 2;
+
+	// If a rising edge has been registered
+	// and the time since last rising edge is less than cooloff time,
+	// ignore!
+	if (c2_rtime > 0
+	&& itime - c2_rtime < COOLOFF) {
+		return;
+	}
+
+	c2_fstatus = 3;
+
+	// Register a successful falling edge.
+	c2_ftime = itime;
+}
+
+void c2_rise() {
+	unsigned long itime = millis();
+
+	c2_rstatus = 1;
+
+	// If a rising edge has been registered
+	// and the time since last rising edge is less than debounce time,
+	// ignore!
+	if (c2_rtime > 0
+	&& itime - c2_rtime < DEBOUNCE) {
+		return;
+	}
+
+	c2_rstatus = 2;
+
+	// If the time since last falling edge is less than colloff time,
+	// ignore!
+	if (itime - c2_ftime < COOLOFF) {
+		return; // Too soon - cool off!
+	}
+
+	c2_rstatus = 3;
+
+	c2_rtime = itime;
+	c2++;
+}
+
+void c2_change() {
+	if (arduinoPinState == 0) {
+		c2_fall();
+	}
+	else {
+		c2_rise();
+	}
+}
+
+// Only register a falling edge if it's long enough away from the previous rising edge (debounce)
+void c3_fall() {
+	unsigned long itime = millis();
+
+	c3_fstatus = 1;
+
+	// If a falling edge has been registered
+	// and the time since last falling edge is less than debounce time,
+	// ignore!
+	if (c3_ftime > 0
+	&& itime - c3_ftime < DEBOUNCE) {
+		return;
+	}
+
+	c3_fstatus = 2;
+
+	// If a rising edge has been registered
+	// and the time since last rising edge is less than cooloff time,
+	// ignore!
+	if (c3_rtime > 0
+	&& itime - c3_rtime < COOLOFF) {
+		return;
+	}
+
+	c3_fstatus = 3;
+
+	// Register a successful falling edge.
+	c3_ftime = itime;
+}
+
+void c3_rise() {
+	unsigned long itime = millis();
+
+	c3_rstatus = 1;
+
+	// If a rising edge has been registered
+	// and the time since last rising edge is less than debounce time,
+	// ignore!
+	if (c3_rtime > 0
+	&& itime - c3_rtime < DEBOUNCE) {
+		return;
+	}
+
+	c3_rstatus = 2;
+
+	// If the time since last falling edge is less than colloff time,
+	// ignore!
+	if (itime - c3_ftime < COOLOFF) {
+		return; // Too soon - cool off!
+	}
+
+	c3_rstatus = 3;
+
+	c3_rtime = itime;
+	c3++;
+}
+
+void c3_change() {
+	if (arduinoPinState == 0) {
+		c3_fall();
+	}
+	else {
+		c3_rise();
+	}
 }
 
 void setup() {
 	pinMode(LED_BUILTIN, OUTPUT);
 	Serial.begin(9600);
-	while(!Serial);
+	while (!Serial);
 	Serial.setTimeout(1000);
 
 	String cal = "";
-	while(cal == "") {
+	while (cal == "") {
 		Serial.println("CAL");
 		cal = Serial.readString();
 		cal.trim();
@@ -175,9 +367,9 @@ void setup() {
 	pinMode(PIN_STATUS_2, INPUT_PULLUP);
 	digitalWrite(LED_BUILTIN, HIGH);
 
-	enableInterrupt(PIN_COUNTER_1, interrupt_handler_c1, FALLING);
-	enableInterrupt(PIN_COUNTER_2, interrupt_handler_c2, FALLING);
-	enableInterrupt(PIN_COUNTER_3, interrupt_handler_c3, FALLING);
+	enableInterrupt(PIN_COUNTER_1, c1_change, CHANGE);
+	enableInterrupt(PIN_COUNTER_2, c2_change, CHANGE);
+	enableInterrupt(PIN_COUNTER_3, c3_change, CHANGE);
 
 	resetAnalog();
 }
